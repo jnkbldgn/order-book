@@ -16,10 +16,10 @@
     />
 
     <div
-      class="d-flex flex-column flex-md-row mt-4 pb-4 flex-1-1 overflow-hidden"
+      class="d-flex flex-column flex-sm-row mt-4 pb-4 flex-1-1 overflow-hidden"
     >
       <c-table-orders
-        class="order-book__table mb-4 mr-md-0 mr-md-4"
+        class="order-book__table mb-4 mr-sm-0 mr-sm-4"
         header="Bid"
         :items="bids.slice(0, currentLimit.value)"
         theme="bid"
@@ -70,7 +70,7 @@ onUnmounted(() => closeStream(currentPair.value.value));
 .order-book__table {
   height: 50%;
 
-  @media screen and (min-width: 960px) {
+  @media screen and (min-width: 600px) {
     height: 100%;
   }
 }

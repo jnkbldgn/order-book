@@ -99,28 +99,18 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
     const clearSymbol = getClearSymbol(symbol).toLowerCase();
     const wsOrderBook = useOrderBookWS();
 
-    wsOrderBook
-      .createStream(clearSymbol, 1)
-      .onmessage = (event) => {
-        const id = this.$state.lastUpdateId + 1;
-        const data = JSON.parse(event.data);
-
-        if(data.U > id || data.u < id) {
-          return;
-        }
-
-        const asks = data.a?.filter((it: string[]) => Number(it[1]) > 0) ?? [];
-        const bids = data.b?.filter((it: string[]) => Number(it[1]) > 0) ?? [];
-
-        this.updateDepth(data.u, asks, bids);
-      };
+    wsOrderBook.createStream(
+      clearSymbol,
+      this.$state.lastUpdateId + 1,
+      (id, asks, bids) => this.updateDepth(id, asks, bids)
+    );
    },
 
    closeStream(symbol: string) {
     const wsOrderBook = useOrderBookWS();
     const clearSymbol = getClearSymbol(symbol).toLowerCase();
 
-    wsOrderBook.closeStream(clearSymbol, 1);
+    wsOrderBook.closeStream(clearSymbol);
 
     this.$state.lastUpdateId = 0;
     this.$state.asks = [];
