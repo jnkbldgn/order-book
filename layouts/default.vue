@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSettingsStore } from '~/stores/settings';
+import { useSettingsStore } from '~/stores/settings/index';
 import { storeToRefs } from 'pinia';
 
 const settingsStore = useSettingsStore();

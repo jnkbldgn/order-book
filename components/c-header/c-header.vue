@@ -19,22 +19,16 @@
         <v-btn
           to="settings"
           variant="text"
-          text="settings"
-          size="small"
-          prepend-icon="mdi-cog-outline"
-          stacked
+          icon="mdi-cog-outline"
           color="primary"
-          rounded="0"
+          size="large"
         />
         <v-btn
           to="order-book"
           variant="text"
-          size="small"
-          text="order book"
-          prepend-icon="mdi-book-open-variant-outline"
-          stacked
+          icon="mdi-book-open-variant-outline"
           color="primary"
-          rounded="0"
+          size="large"
         />
       </div>
     </template>

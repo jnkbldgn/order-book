@@ -7,26 +7,13 @@
       Settings
     </h1>
 
-    <v-select
-      id="current-pair"
+    <c-select
       class="mt-4 flex-0-0"
       :value="currentPair.value"
-      hint="You can change current pair"
-      persistent-hint
-      variant="outlined"
-      density="compact"
       :items="pairs"
-      item-title="value"
-      :disabled="pairs.length === 0"
-    >
-      <template #item="{ props, item }">
-        <v-list-item
-          v-bind="props"
-          :active="item.raw.value === currentPair.value"
-          @click="() => changeCurrentPair(item.raw)"
-        />
-      </template>
-    </v-select>
+      hint="You can change current pair"
+      @change="(item) => changeCurrentPair(item as IPair)"
+    />
 
     <v-data-table-virtual
       class="mt-4 flex-1-0"
@@ -38,7 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { useSettingsStore } from '~/stores/settings';
+import { useSettingsStore } from '~/stores/settings/index';
+import type { IPair } from '~/stores/settings/types';
 
 const settingsStore = useSettingsStore();
 

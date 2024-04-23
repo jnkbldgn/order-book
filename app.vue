@@ -6,7 +6,7 @@
 
 
 <script setup lang="ts">
-import { useSettingsStore } from '~/stores/settings';
+import { useSettingsStore } from '~/stores/settings/index';
 
 const settingsStore = useSettingsStore();
 
