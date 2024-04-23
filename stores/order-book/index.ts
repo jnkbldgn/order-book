@@ -55,7 +55,7 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
     },
 
     maxLimit(state) {
-      return Math.max(...state.limits.map((it) => it.value));
+      return Math.max(...state.limits.map((it) => it.value), DEFAULT_LIMIT.value);
     }
   },
 

@@ -55,6 +55,9 @@ const loading = ref(true);
 onServerPrefetch(() => fetchLimits());
 
 onBeforeMount(async () => {
+  if(limits.value.length === 0) {
+    await fetchLimits();
+  }
   await fetchDepth(currentPair.value.value);
   openStream(currentPair.value.value);
   loading.value = false;
