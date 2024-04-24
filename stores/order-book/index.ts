@@ -101,7 +101,7 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
 
     wsOrderBook.createStream(
       clearSymbol,
-      this.$state.lastUpdateId + 1,
+      () => this.$state.lastUpdateId + 1,
       (id, asks, bids) => this.updateDepth(id, asks, bids)
     );
    },

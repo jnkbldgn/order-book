@@ -5,7 +5,7 @@ export const useOrderBookWS = () => {
 
   return {
 
-    createStream(symbol: string, id: number, updateDepth: (id: number, asks: string[][], bids: string[][]) => void) {
+    createStream(symbol: string, getId: () => number, updateDepth: (id: number, asks: string[][], bids: string[][]) => void) {
       const url = new URL('wss://stream.binance.com:9443/ws/' + symbol + '@depth');
 
       STREAM = new WebSocket(url);
@@ -20,11 +20,13 @@ export const useOrderBookWS = () => {
       };
 
       STREAM.onmessage = (event) => {
+        const id = getId();
         const data = JSON.parse(event.data);
 
         if(data.id === 312) {
           STREAM?.close(1001);
           STREAM = null;
+          return;
         }
 
         if(data.U > id || data.u < id) {
