@@ -4,54 +4,60 @@ let STREAM: WebSocket | null = null;
 export const useOrderBookWS = () => {
 
   return {
+    restarts: 0,
+    idStart: 1,
+    idClose: 312,
 
-    createStream(symbol: string, getId: () => number, updateDepth: (id: number, asks: string[][], bids: string[][]) => void) {
-      const url = new URL('wss://stream.binance.com:9443/ws/' + symbol + '@depth');
 
-      STREAM = new WebSocket(url);
+    createStream(
+      symbol: string,
+      onMessage: (event: MessageEvent) => void,
+    ) {
+      const url = new URL('wss://stream.binance.com/stream');
 
-      STREAM.onopen = () => {
+      if(STREAM?.OPEN) {
         STREAM?.send(
-        JSON.stringify({
-          method: "SUBSCRIBE",
-          params: [`${symbol}@depth`],
-          id: 1,
-        }));
-      };
+          JSON.stringify({
+            method: "SUBSCRIBE",
+            params: [`${symbol}@depth`],
+            id: 1,
+          }));
+      } else {
+        STREAM = new WebSocket(url);
 
-      STREAM.onmessage = (event) => {
-        const id = getId();
-        const data = JSON.parse(event.data);
+        STREAM.onopen = () => this.openStream(symbol);
 
-        if(data.id === 312) {
-          STREAM?.close(1001);
-          STREAM = null;
-          return;
-        }
+        STREAM.onmessage = (event) => onMessage(event);
 
-        if(data.U > id || data.u < id) {
-          return;
-        }
+        STREAM.onerror = (error) => {
+          console.log(error);
 
-        const asks = data.a?.filter((it: string[]) => Number(it[1]) > 0) ?? [];
-        const bids = data.b?.filter((it: string[]) => Number(it[1]) > 0) ?? [];
+          if(this.restarts < 5) {
+            this.restarts++;
+            this.createStream(symbol, onMessage);
+          }
+        };
+      }
 
-        updateDepth(data.u, asks, bids);
-      };
-
-      STREAM.onerror = (error) => {
-        console.log(error);
-      };
 
       return STREAM;
     },
+
+    openStream(symbol: string) {
+      STREAM?.send(
+        JSON.stringify({
+          method: "SUBSCRIBE",
+          params: [`${symbol}@depth`],
+          id: this.idStart,
+        }));
+     },
 
     closeStream(symbol: string) {
       STREAM?.send(
         JSON.stringify({
           method: "UNSUBSCRIBE",
           params: [`${symbol}@depth`],
-          id: 312,
+          id: this.idClose,
         })
       );
      },

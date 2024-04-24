@@ -18,21 +18,23 @@
     <div
       class="d-flex flex-column flex-sm-row mt-4 pb-4 flex-1-1 overflow-hidden"
     >
-      <c-table-orders
-        class="order-book__table mb-4 mr-sm-0 mr-sm-4"
-        header="Bid"
-        :items="bids.slice(0, currentLimit.value)"
-        theme="bid"
-        :loading="loading"
-      />
+      <client-only>
+        <c-table-orders
+          class="order-book__table mb-4 mr-sm-0 mr-sm-4"
+          header="Bid"
+          :items="bidsSorted"
+          theme="bid"
+          :loading="loading"
+        />
 
-      <c-table-orders
-        class="order-book__table"
-        header="Ask"
-        :items="asks.slice(0, currentLimit.value)"
-        theme="ask"
-        :loading="loading"
-      />
+        <c-table-orders
+          class="order-book__table"
+          header="Ask"
+          :items="asksSorted"
+          theme="ask"
+          :loading="loading"
+        />
+      </client-only>
     </div>
   </v-container>
 </template>
@@ -46,11 +48,20 @@ const orderBookStore = useOrderBookStore();
 const settingsStore = useSettingsStore();
 
 const { changeCurrentLimit, fetchLimits, fetchDepth, openStream, closeStream } = orderBookStore;
-const { limits, currentLimit, asks, bids } = storeToRefs(orderBookStore);
+const { limits, currentLimit, asksSorted, bidsSorted } = storeToRefs(orderBookStore);
 
 const { currentPair } = storeToRefs(settingsStore);
 
-const loading = ref(true);
+const loading = ref(false);
+
+watch(currentLimit, async (value) => {
+  loading.value = true;
+  try {
+    await fetchDepth(currentPair.value.value, value.value);
+  } finally {
+    loading.value = false;
+  }
+}, { immediate: true });
 
 onServerPrefetch(() => fetchLimits());
 
@@ -58,12 +69,13 @@ onBeforeMount(async () => {
   if(limits.value.length === 0) {
     await fetchLimits();
   }
-  await fetchDepth(currentPair.value.value);
+
   openStream(currentPair.value.value);
-  loading.value = false;
 });
 
-onUnmounted(() => closeStream(currentPair.value.value));
+onBeforeUnmount(() => {
+  closeStream(currentPair.value.value);
+} );
 </script>
 
 <style>

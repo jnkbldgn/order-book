@@ -1,7 +1,7 @@
 interface IDepthResponse {
   lastUpdateId: number;
-  bids: string[][];
-  asks: string[][];
+  bids: [string, string][];
+  asks: [string, string][];
 }
 
 export const useOrderBookApi = () => ({

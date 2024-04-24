@@ -30,6 +30,7 @@ import type { IPair } from '~/stores/settings/types';
 
 const settingsStore = useSettingsStore();
 
+
 const { changeCurrentPair } = settingsStore;
 const { pairs, currentPair, logs } = storeToRefs(settingsStore);
 </script>

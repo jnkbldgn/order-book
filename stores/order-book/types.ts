@@ -14,20 +14,22 @@ export interface IOrder {
 export interface IOrderBookState {
   limits: ILimit[];
   lastUpdateId: number,
-  asks: IOrder[];
-  bids: IOrder[];
+  asks: Map<string, string>;
+  bids: Map<string, string>;
+  isWSOpen: boolean;
 }
 
 export interface IOrderBookGetters extends IGetters {
   currentLimit(state: IOrderBookState): ILimit;
-  maxLimit(state: IOrderBookState): number;
+  asksSorted(state: IOrderBookState): IOrder[];
+  bidsSorted(state: IOrderBookState): IOrder[];
+
 }
 
 export interface IOrderBookActions {
   fetchLimits(): Promise<void>;
   changeCurrentLimit(item: ILimit): void;
-  fetchDepth(symbol: string): Promise<void>;
-  updateDepth(id: number, asks: string[][], bids: string[][]): void;
+  fetchDepth(symbol: string, limit: number): Promise<void>;
   openStream(symbol: string): void;
   closeStream(symbol: string): void;
 }

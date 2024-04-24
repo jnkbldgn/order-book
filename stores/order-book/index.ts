@@ -1,35 +1,11 @@
 import { defineStore } from "pinia";
-import type { ILimit, IOrder, IOrderBookActions, IOrderBookGetters, IOrderBookState, TOrderBookStoreId } from "./types";
+import type { ILimit, IOrderBookActions, IOrderBookGetters, IOrderBookState, TOrderBookStoreId } from "./types";
 import { useOrderBookApi } from "~/api/order-book";
 import { useOrderBookWS } from "~/websocket/order-book";
+import { useSettingsStore } from "../settings";
 
 function getClearSymbol(symbol: string): string {
   return symbol.replace('-', '');
-}
-
-function mergeOrders(newValue: IOrder[], oldValue: IOrder[], limit: number): IOrder[] {
-  let result: IOrder[] = newValue.slice(0, limit);
-
-  if(result.length < limit - 1) {
-    result = result.concat(oldValue.slice(result.length, limit));
-  }
-
-  return result;
-}
-
-function mapOrder([price, quantity]: string[]): IOrder {
-  return {
-    price,
-    quantity,
-    total: String(Number(price) * Number(quantity)),
-  };
-}
-
-function mapLimit(value: number, currentValue: number): ILimit {
-  return {
-    value,
-    current: value === currentValue
-  };
 }
 
 const DEFAULT_LIMIT: ILimit = {
@@ -38,6 +14,9 @@ const DEFAULT_LIMIT: ILimit = {
 
 };
 
+const orderUtils = useOrderUtils();
+const limitUtils = useLimitUtils();
+
 
 export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState, IOrderBookGetters, IOrderBookActions>({
   id: 'order-book-store',
@@ -45,8 +24,9 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
   state: () => ({
     limits: [],
     lastUpdateId: 0,
-    asks: [],
-    bids: [],
+    asks: new Map<string, string>(),
+    bids: new Map<string, string>(),
+    isWSOpen: false,
   }),
 
   getters: {
@@ -54,9 +34,19 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
       return state.limits.find(it => it.current) ?? DEFAULT_LIMIT;
     },
 
-    maxLimit(state) {
-      return Math.max(...state.limits.map((it) => it.value), DEFAULT_LIMIT.value);
-    }
+    asksSorted(state) {
+      return Array.from(state.asks.entries())
+        .map(orderUtils.mapOrder)
+        .toSorted((a, b) => +a.price - +b.price)
+        .slice(0, this.currentLimit.value);
+    },
+
+    bidsSorted(state) {
+      return Array.from(state.bids.entries())
+        .map(orderUtils.mapOrder)
+        .toSorted((a, b) => +b.price - +a.price)
+        .slice(0, this.currentLimit.value);
+    },
   },
 
   actions: {
@@ -65,7 +55,7 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
 
       const response = await apiOrderBook.fetchLimits();
 
-      this.$state.limits = response.map((it) => mapLimit(it, DEFAULT_LIMIT.value));
+      this.limits = response.map((it) => limitUtils.mapLimit(it, DEFAULT_LIMIT.value));
     },
 
     changeCurrentLimit(item) {
@@ -73,48 +63,68 @@ export const useOrderBookStore = defineStore<TOrderBookStoreId, IOrderBookState,
         return;
       }
 
-      this.$state.limits = this.$state.limits.map((it) => mapLimit(it.value, item.value));
+      this.limits = this.limits.map((it) => limitUtils.mapLimit(it.value, item.value));
     },
 
-   async fetchDepth(symbol: string) {
-    const clearSymbol = getClearSymbol(symbol);
-    const apiOrderBook = useOrderBookApi();
+    async fetchDepth(symbol: string, limit: number) {
+      const clearSymbol = getClearSymbol(symbol);
+      const apiOrderBook = useOrderBookApi();
+      const { currentPair } = useSettingsStore();
 
-    const {lastUpdateId, asks, bids} = await apiOrderBook.fetchDepth(clearSymbol, this.maxLimit);
+      if(getClearSymbol(currentPair.value) !== clearSymbol){
+        return;
+      }
 
-    this.updateDepth(lastUpdateId, asks, bids);
-   },
+      const {lastUpdateId, asks = [], bids = []} = await apiOrderBook.fetchDepth(clearSymbol, limit);
 
-  updateDepth(id: number, asks: string[][], bids: string[][]) {
-    this.$state.lastUpdateId = id;
+      this.asks = orderUtils.mergeOrders(asks, new Map());
+      this.bids = orderUtils.mergeOrders(bids, new Map());
+      this.lastUpdateId = lastUpdateId;
+    },
 
-    const newAsks = asks.map((it) => mapOrder(it));
-    const newBids = bids.map((it) => mapOrder(it));
+    openStream(symbol: string) {
+      const clearSymbol = getClearSymbol(symbol).toLowerCase();
+      const wsOrderBook = useOrderBookWS();
 
-    this.$state.asks = mergeOrders(newAsks, this.$state.asks, this.maxLimit);
-    this.$state.bids = mergeOrders(newBids, this.$state.bids, this.maxLimit);
-  },
+      const onMessage = (event: MessageEvent) => {
+        const { id = -1, data = {} } = JSON.parse(event.data);
 
-   openStream(symbol: string) {
-    const clearSymbol = getClearSymbol(symbol).toLowerCase();
-    const wsOrderBook = useOrderBookWS();
+        if(id === wsOrderBook.idStart) {
+          this.isWSOpen = true;
+          return;
+        }
 
-    wsOrderBook.createStream(
-      clearSymbol,
-      () => this.$state.lastUpdateId + 1,
-      (id, asks, bids) => this.updateDepth(id, asks, bids)
-    );
-   },
+        if(!this.isWSOpen || id === wsOrderBook.closeStream || data.u <= this.lastUpdateId) {
+          return;
+        }
 
-   closeStream(symbol: string) {
-    const wsOrderBook = useOrderBookWS();
-    const clearSymbol = getClearSymbol(symbol).toLowerCase();
+        if(this.lastUpdateId + 1 >= data.U && data.u >= this.lastUpdateId + 1) {
+          this.lastUpdateId = data.u;
 
-    wsOrderBook.closeStream(clearSymbol);
+          orderUtils.mergeOrders(data.a ?? [], this.asks);
+          orderUtils.mergeOrders(data.b ?? [], this.bids);
+        } else {
+          this.fetchDepth(data.s, this.currentLimit.value);
+        }
+      };
 
-    this.$state.lastUpdateId = 0;
-    this.$state.asks = [];
-    this.$state.bids = [];
-   },
+      wsOrderBook.createStream(
+        clearSymbol,
+        onMessage,
+      );
+    },
+
+    closeStream(symbol: string) {
+      const wsOrderBook = useOrderBookWS();
+      const clearSymbol = getClearSymbol(symbol).toLowerCase();
+
+      wsOrderBook.closeStream(clearSymbol);
+
+      this.isWSOpen = false;
+
+      this.lastUpdateId = 0;
+      this.asks.clear();
+      this.bids.clear();
+    },
   }
 });
