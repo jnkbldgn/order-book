@@ -1,6 +1,5 @@
 <template>
   <v-data-table-virtual
-    class="c-table-orders"
     height="100%"
     density="compact"
     fixed-header
@@ -16,19 +15,16 @@
     </template>
 
     <template #item="{item}">
-      <tr class="c-table-orders__order">
+      <tr
+        :style="{
+          background: getBackground(+item.price, +item.total),
+        }"
+      >
         <td>{{ Number(item.price).toFixed(5) }}</td>
         <td>{{ Number(item.quantity).toFixed(5) }}</td>
         <td v-if="headers.length > 2">
           {{ Number(item.total).toFixed(5) }}
         </td>
-        <span
-          class="c-table-orders__order-bg"
-          :style="{
-            width: Math.floor(Math.random() * 100) + '%',
-            backgroundColor: theme[props.theme].backgroundColor,
-          }"
-        />
       </tr>
     </template>
   </v-data-table-virtual>
@@ -62,17 +58,10 @@ const headers = computed(() => {
 
   return tableHeaders;
 });
+
+const getBackground = (price: number, total: number): string => {
+  const bgWidth = Math.min(100 - Math.floor((total/price) * 100), 100) + '%';
+
+  return `linear-gradient(90deg, rgba(0,0,0,0) ${bgWidth}, ${theme[props.theme].backgroundColor} ${bgWidth})`;
+};
 </script>
-
-<style>
-  .c-table-orders__order {
-    position: relative;
-  }
-
-  .c-table-orders__order-bg {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-  }
-</style>
