@@ -17,7 +17,7 @@
     <template #item="{item}">
       <tr
         :style="{
-          background: getBackground(+item.price, +item.total),
+          background: getBackground(+item.quantity),
         }"
       >
         <td>{{ Number(item.price).toFixed(5) }}</td>
@@ -59,9 +59,9 @@ const headers = computed(() => {
   return tableHeaders;
 });
 
-const getBackground = (price: number, total: number): string => {
-  const bgWidth = Math.min(100 - Math.floor((total/price) * 100), 100) + '%';
+const getBackground = (quantity: number,): string => {
+  const bgWidth = 100 - Math.min(Math.floor((quantity) * 100), 100);
 
-  return `linear-gradient(90deg, rgba(0,0,0,0) ${bgWidth}, ${theme[props.theme].backgroundColor} ${bgWidth})`;
+  return `linear-gradient(90deg, rgba(0,0,0,0) ${bgWidth}%, ${theme[props.theme].backgroundColor} ${bgWidth}%)`;
 };
 </script>
